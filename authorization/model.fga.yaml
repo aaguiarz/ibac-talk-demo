@@ -1,0 +1,206 @@
+model_file: model.fga
+
+tuples:
+  - user: user:alice
+    relation: user
+    object: agent_user:alice__mcp_agent
+  - user: user:bob
+    relation: user
+    object: agent_user:bob__mcp_agent
+  - user: agent:mcp_agent
+    relation: agent
+    object: agent_user:alice__mcp_agent
+  - user: agent:mcp_agent
+    relation: agent
+    object: agent_user:bob__mcp_agent
+
+  - user: session:sess1
+    relation: session
+    object: agent_user:alice__mcp_agent
+  - user: session:sess2
+    relation: session
+    object: agent_user:alice__mcp_agent
+  - user: session:sess3
+    relation: session
+    object: agent_user:bob__mcp_agent
+
+  - user: task:taska
+    relation: task
+    object: session:sess1
+  - user: task:taskb
+    relation: task
+    object: session:sess1
+  - user: task:taskc
+    relation: task
+    object: session:sess2
+  - user: task:taskd
+    relation: task
+    object: session:sess3
+
+  # Direct autonomous binding without a session.
+  - user: task:taske
+    relation: task
+    object: agent_user:alice__mcp_agent
+
+  # Tool-level grants.
+  - user: task:taska
+    relation: can_call_task
+    object: tool:linear_get_project
+  - user: session:sess1#task
+    relation: can_call_session
+    object: tool:list_linear_projects
+  - user: agent_user:alice__mcp_agent#task
+    relation: can_call_agent_user
+    object: tool:slack_send_message
+
+  # Public read-only meta-tools.
+  - user: task:*
+    relation: can_call_agent_user
+    object: tool:get_resource_metadata
+  - user: task:*
+    relation: can_call_agent_user
+    object: tool:list_permissions
+
+  # Tool-resource links and concrete grants.
+  - user: tool:slack_send_message
+    relation: parent_tool
+    object: tool_resource:slack_send_message_slack_c5xmactml
+  - user: tool:slack_send_message
+    relation: parent_tool
+    object: tool_resource:slack_send_message_slack_c5w762keu
+  - user: task:taska
+    relation: can_call_task
+    object: tool_resource:send_email_email_alice_example_com
+
+tests:
+  - name: Task-scoped grants apply only to the bound task
+    tuples:
+      - user: agent_user:alice__mcp_agent
+        relation: agent_user_in_context
+        object: tool:linear_get_project
+    check:
+      - user: task:taska
+        object: tool:linear_get_project
+        assertions:
+          can_call: true
+      - user: task:taskb
+        object: tool:linear_get_project
+        assertions:
+          can_call: false
+
+  - name: Session-scoped grants apply across tasks in the same session
+    tuples:
+      - user: agent_user:alice__mcp_agent
+        relation: agent_user_in_context
+        object: tool:list_linear_projects
+    check:
+      - user: task:taska
+        object: tool:list_linear_projects
+        assertions:
+          can_call: true
+      - user: task:taskb
+        object: tool:list_linear_projects
+        assertions:
+          can_call: true
+      - user: task:taskc
+        object: tool:list_linear_projects
+        assertions:
+          can_call: false
+
+  - name: Always grants apply across sessions for the same agent_user
+    tuples:
+      - user: agent_user:alice__mcp_agent
+        relation: agent_user_in_context
+        object: tool:slack_send_message
+    check:
+      - user: task:taska
+        object: tool:slack_send_message
+        assertions:
+          can_call: true
+      - user: task:taskc
+        object: tool:slack_send_message
+        assertions:
+          can_call: true
+      - user: task:taskd
+        object: tool:slack_send_message
+        assertions:
+          can_call: false
+
+  - name: Public meta-tools work for any properly bound task
+    tuples:
+      - user: agent_user:alice__mcp_agent
+        relation: agent_user_in_context
+        object: tool:get_resource_metadata
+      - user: agent_user:bob__mcp_agent
+        relation: agent_user_in_context
+        object: tool:get_resource_metadata
+      - user: agent_user:alice__mcp_agent
+        relation: agent_user_in_context
+        object: tool:list_permissions
+      - user: agent_user:bob__mcp_agent
+        relation: agent_user_in_context
+        object: tool:list_permissions
+    check:
+      - user: task:taska
+        object: tool:get_resource_metadata
+        assertions:
+          can_call: true
+      - user: task:taskd
+        object: tool:list_permissions
+        assertions:
+          can_call: true
+
+  - name: Tool-level grants inherit to child tool_resources via parent_tool
+    tuples:
+      - user: agent_user:alice__mcp_agent
+        relation: agent_user_in_context
+        object: tool_resource:slack_send_message_slack_c5xmactml
+      - user: agent_user:alice__mcp_agent
+        relation: agent_user_in_context
+        object: tool_resource:slack_send_message_slack_c5w762keu
+    check:
+      - user: task:taska
+        object: tool_resource:slack_send_message_slack_c5xmactml
+        assertions:
+          can_call: true
+      - user: task:taska
+        object: tool_resource:slack_send_message_slack_c5w762keu
+        assertions:
+          can_call: true
+      - user: task:taskd
+        object: tool_resource:slack_send_message_slack_c5w762keu
+        assertions:
+          can_call: false
+
+  - name: Direct task binding supports autonomous mode without a session
+    tuples:
+      - user: agent_user:alice__mcp_agent
+        relation: agent_user_in_context
+        object: tool:get_resource_metadata
+    check:
+      - user: task:taske
+        object: tool:get_resource_metadata
+        assertions:
+          can_call: true
+
+  - name: Task-scoped tool_resource grants work for concrete resources only
+    tuples:
+      - user: agent_user:alice__mcp_agent
+        relation: agent_user_in_context
+        object: tool_resource:send_email_email_alice_example_com
+    check:
+      - user: task:taska
+        object: tool_resource:send_email_email_alice_example_com
+        assertions:
+          can_call: true
+      - user: task:taskb
+        object: tool_resource:send_email_email_alice_example_com
+        assertions:
+          can_call: false
+
+  - name: Context is still required even for public tools
+    check:
+      - user: task:taska
+        object: tool:get_resource_metadata
+        assertions:
+          can_call: false

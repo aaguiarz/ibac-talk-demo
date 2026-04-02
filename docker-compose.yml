@@ -1,0 +1,13 @@
+services:
+  openfga:
+    image: openfga/openfga:latest
+    command: run
+    ports:
+      - "8080:8080"   # HTTP API
+      - "8081:8081"   # gRPC
+      - "3000:3000"   # Playground
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 10

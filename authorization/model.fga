@@ -1,0 +1,61 @@
+model
+  schema 1.1
+
+# The human operating the agent.
+type user
+
+# The agent software (e.g. "mcp_agent").
+type agent
+
+# A unit of work within a session. This is the subject of every check:
+# "Can this task call this tool?"
+type task
+
+# A user+agent pair
+type agent_user
+  relations
+    define user: [user]
+    define agent: [agent]
+    # Sessions that belong to this user+agent pair.
+    define session: [session]
+    # Tasks reachable via session membership OR bound directly (autonomous mode).
+    define task: [task] or task from session
+
+# A client session. Tasks are members of a session.
+type session
+  relations
+    define task: [task]
+
+# A tool (action) — e.g. "list_slack_channels".
+type tool
+  relations
+    # Context: which agent_user is running this task? (contextual tuple)
+    # The middleware resolves the agent_user from the session and passes:
+    #   { agent_user:X, agent_user_in_context, tool:Y }    
+    define agent_user_in_context: [agent_user]
+
+    # Task-scoped grant (once) — only this specific task.
+    define can_call_task: [task]
+    # Session-scoped grant — any task in the granted session.
+    define can_call_session: [session#task]
+    # Always grant — any task belonging to the granted user+agent pair.
+    # Use task:* to make a tool callable by any task (exempt/public tools).
+    define can_call_agent_user: [agent_user#task, task:*]
+
+    define base_can_call: can_call_task or can_call_session or can_call_agent_user
+
+    # Effective permission: grant exists AND task belongs to the agent_user.
+    define can_call: base_can_call and task from agent_user_in_context
+
+# A tool+resource pair — e.g. "send_message/slack_C5XMACTML".
+type tool_resource
+  relations
+    define parent_tool: [tool]
+    define agent_user_in_context: [agent_user]
+
+    define can_call_task: [task]
+    define can_call_session: [session#task]
+    define can_call_agent_user: [agent_user#task, task:*]
+
+    define can_call: (can_call_task or can_call_session or can_call_agent_user or base_can_call from parent_tool) and task from agent_user_in_context
+
