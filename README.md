@@ -4,6 +4,8 @@ Intent-Based, Task-scoped authorization for AI agents using [MCP](https://modelc
 
 This repository contains the code for a [talk](https://mcpdevsummitna26.sched.com/event/2Hbg0/from-scopes-to-intent-reimagining-authorization-for-autonomous-agents-andres-aguiar-abhishek-hingnikar-okta) demo presented at [MCP Dev Summit North America 2026](https://events.linuxfoundation.org/mcp-dev-summit-north-america/).
 
+You can watch a recording of the demo [here](https://www.youtube.com/watch?v=IVIvtusd7LA).
+
 Additional resources mentioned in the presentation:
 
 - [Task Based Authorization in OpenFGA](http://openga.dev/docs/modeling/agents/task-based-authorization)
