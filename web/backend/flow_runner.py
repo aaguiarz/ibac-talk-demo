@@ -23,6 +23,7 @@ from authz_flow import (
     cleanup_fga_after_task,
     get_server_script,
     init_fga_client,
+    reset_all_tuples,
     run_agent_loop,
     run_authz_pipeline,
 )
@@ -144,6 +145,15 @@ class FlowRunner:
         fga_tuples: list[ClientTuple] = []
 
         await self.event_bus.emit("task_created", {"task_id": task_id})
+
+        # Silently wipe all tuples so each demo starts clean
+        reset_client = init_fga_client()
+        if reset_client:
+            try:
+                await reset_all_tuples(reset_client)
+            finally:
+                await reset_client.close()
+
         await self.event_bus.emit("flow_status", {"phase": "connecting"})
 
         server_script = get_server_script()

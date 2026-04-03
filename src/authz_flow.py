@@ -1046,6 +1046,37 @@ async def _cleanup_task_membership(
         pass
 
 
+async def read_all_tuples(fga_client: OpenFgaClient) -> list[Any]:
+    """Read all tuples from the store, handling pagination."""
+    all_tuples: list[Any] = []
+    continuation_token: str | None = None
+    while True:
+        options: dict[str, Any] = {}
+        if continuation_token:
+            options["continuation_token"] = continuation_token
+        resp = await fga_client.read(ReadRequestTupleKey(), options)
+        all_tuples.extend(resp.tuples or [])
+        if not resp.continuation_token:
+            break
+        continuation_token = resp.continuation_token
+    return all_tuples
+
+
+async def reset_all_tuples(fga_client: OpenFgaClient | None) -> None:
+    """Delete every tuple in the store — silent pre-demo reset."""
+    if not fga_client:
+        return
+    raw_tuples = await read_all_tuples(fga_client)
+    to_delete = [
+        ClientTuple(user=t.key.user, relation=t.key.relation, object=t.key.object)
+        for t in raw_tuples
+    ]
+    if to_delete:
+        for i in range(0, len(to_delete), 10):
+            batch = to_delete[i : i + 10]
+            await fga_client.write(ClientWriteRequest(deletes=batch), FGA_WRITE_OPTS)
+
+
 def init_fga_client() -> OpenFgaClient | None:
     """Create an OpenFGA client from env vars, or return None."""
     fga_store_id = os.environ.get("FGA_STORE_ID", "")

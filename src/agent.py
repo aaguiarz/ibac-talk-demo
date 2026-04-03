@@ -33,6 +33,7 @@ from authz_flow import (
     cleanup_fga_after_task,
     get_server_script,
     init_fga_client,
+    reset_all_tuples,
     run_authz_pipeline,
     suggest_resource_names,
     PROJECT_ROOT,
@@ -475,6 +476,7 @@ async def main() -> None:
                     break
 
                 task_id = str(uuid.uuid4())
+                await reset_all_tuples(_fga_client)
                 log(f"\n{user_prompt}\n")
                 log(f"Task ID: {task_id}", LogLevel.VERBOSE)
 
